@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: factoryflow_user
+      POSTGRES_PASSWORD: factoryflow_pass
+      POSTGRES_DB: factoryflow_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env.backend
+    environment:
+      DATABASE_URL: postgres://factoryflow_user:factoryflow_pass@postgres:5432/factoryflow_db
+      JWT_SECRET: supersecretjwtkey
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

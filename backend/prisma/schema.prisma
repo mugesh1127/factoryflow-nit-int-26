@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+dataSource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  orders    SalesOrder[]
+}
+
+model Supplier {
+  id        Int      @id @default(autoincrement())
+  name      String
+  contact   String?
+  createdAt DateTime @default(now())
+  purchases Purchase[]
+}
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  sku       String   @unique
+  unitPrice Decimal   @db.Decimal(12,4)
+  hsnCode   String?
+  createdAt DateTime @default(now())
+  salesItems SalesOrderItem[]
+  purchaseItems PurchaseItem[]
+  boms      BOM[]
+}
+
+model RawMaterial {
+  id          Int      @id @default(autoincrement())
+  name        String
+  unit        String
+  openingQty  Decimal   @db.Decimal(12,4)
+  createdAt   DateTime @default(now())
+  purchaseItems PurchaseItem[]
+  stockLedger StockLedger[]
+}
+
+model StockLedger {
+  id          Int      @id @default(autoincrement())
+  entityType  String   // "RAW" or "FINISHED"
+  entityId    Int
+  qtyIn       Decimal? @db.Decimal(12,4)
+  qtyOut      Decimal? @db.Decimal(12,4)
+  balance     Decimal  @db.Decimal(12,4)
+  reference   String?
+  createdAt   DateTime @default(now())
+}
+
+model SalesOrder {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  orderDate   DateTime @default(now())
+  status      String   @default("OPEN")
+  total       Decimal   @db.Decimal(12,4)
+  createdAt   DateTime @default(now())
+  items       SalesOrderItem[]
+  invoice     Invoice?
+  customer    Customer @relation(fields: [customerId], references: [id])
+}
+
+model SalesOrderItem {
+  id           Int      @id @default(autoincrement())
+  orderId      Int
+  productId    Int
+  qty          Decimal   @db.Decimal(12,4)
+  rate         Decimal   @db.Decimal(12,4)
+  amount       Decimal   @db.Decimal(12,4)
+  order        SalesOrder @relation(fields: [orderId], references: [id])
+  product      Product    @relation(fields: [productId], references: [id])
+}
+
+model Invoice {
+  id                Int      @id @default(autoincrement())
+  orderId           Int     @unique
+  taxableValue      Decimal @db.Decimal(12,4)
+  cgst              Decimal @db.Decimal(12,4)
+  sgst              Decimal @db.Decimal(12,4)
+  igst              Decimal @db.Decimal(12,4)
+  total             Decimal @db.Decimal(12,4)
+  invoiceDate       DateTime @default(now())
+  status            String   @default("UNPAID")
+  payments          Payment[]
+  order             SalesOrder @relation(fields: [orderId], references: [id])
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  invoiceId   Int
+  amount      Decimal   @db.Decimal(12,4)
+  paidAt      DateTime @default(now())
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model PurchaseOrder {
+  id          Int      @id @default(autoincrement())
+  supplierId  Int
+  poDate      DateTime @default(now())
+  status      String   @default("OPEN")
+  total       Decimal   @db.Decimal(12,4)
+  createdAt   DateTime @default(now())
+  items       PurchaseItem[]
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+}
+
+model PurchaseItem {
+  id            Int      @id @default(autoincrement())
+  poId          Int
+  rawMaterialId Int
+  qty           Decimal   @db.Decimal(12,4)
+  rate          Decimal   @db.Decimal(12,4)
+  amount        Decimal   @db.Decimal(12,4)
+  po            PurchaseOrder @relation(fields: [poId], references: [id])
+  rawMaterial   RawMaterial   @relation(fields: [rawMaterialId], references: [id])
+}
+
+model BOM {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  rawMaterialId Int
+  qtyPerUnit  Decimal   @db.Decimal(12,4)
+  product     Product   @relation(fields: [productId], references: [id])
+  rawMaterial RawMaterial @relation(fields: [rawMaterialId], references: [id])
+}
+
+model ProductionRun {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  plannedQty   Int
+  goodQty      Int
+  damagedQty   Int
+  actualFlour  Decimal   @db.Decimal(12,4)
+  actualOil    Decimal   @db.Decimal(12,4)
+  actualSpice  Decimal   @db.Decimal(12,4)
+  runDate      DateTime @default(now())
+  product      Product @relation(fields: [productId], references: [id])
+}
+
+model Overhead {
+  id          Int      @id @default(autoincrement())
+  description String
+  amount      Decimal   @db.Decimal(12,4)
+}
